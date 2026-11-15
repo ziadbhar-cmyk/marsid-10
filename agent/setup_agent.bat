@@ -14,9 +14,11 @@ if %errorlevel% neq 0 (
 )
 
 set PY=
-for /f "delims=" %%i in ('where python 2^>nul') do if not defined PY set PY=%%i
+for /f "delims=" %%i in ('where python 2^>nul ^| find /i /v "WindowsApps"') do if not defined PY set PY=%%i
+if not defined PY if exist "%ProgramFiles%\Python313\python.exe" set PY=%ProgramFiles%\Python313\python.exe
+if not defined PY if exist "%ProgramFiles%\Python312\python.exe" set PY=%ProgramFiles%\Python312\python.exe
 if not defined PY (
-  echo [!] Python is not installed.
+  echo [!] Python is not installed ^(the WindowsApps shortcut is not real Python^).
   echo     Install Python 3.11 or newer from https://www.python.org/downloads/windows/
   echo     IMPORTANT: tick "Add python.exe to PATH" and choose "Install for all users".
   echo     Or run:  winget install -e --id Python.Python.3.12 --scope machine
