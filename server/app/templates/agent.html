@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top"><div><h1>وكيل المزامنة — {{ p.name }}</h1>
+<div class="sub">برنامج صغير يشتغل على الجهاز الذي فيه قاعدة بيانات {{ p.system_name or 'المنظومة' }}، ويرسل البيانات للسيرفر تلقائياً</div></div>
+<a href="/projects/{{ p.id }}/connect" class="btn btn-outline-secondary btn-sm">تغيير طريقة الربط</a></div>
+{% if p.status == 'new' %}{% include "_steps.html" %}{% endif %}
+
+<div class="row g-3">
+<div class="col-lg-7">
+<div class="card"><div class="card-body">
+  <h5>خطوات التركيب (مرة واحدة)</h5>
+  <ol class="mb-0" style="line-height:2.1">
+    <li>نزّل حزمة الوكيل الجاهزة لهذا المشروع:
+      <a href="/projects/{{ p.id }}/agent.zip" class="btn btn-brand btn-sm"><i class="bi bi-download"></i> تنزيل MarsadAgent.zip</a></li>
+    <li>انسخها إلى الجهاز الذي فيه قاعدة البيانات وفك الضغط في <span class="mono">C:\MarsadAgent</span></li>
+    <li>افتح <span class="mono">config.json</span> وعدّل سطر الاتصال بقاعدة البيانات (نوعها: <b>{{ DB_ENGINES.get(p.conn.engine, '') }}</b>).
+      الرابط والرمز السري معبّأين مسبقاً.</li>
+    <li>شغّل <span class="mono">setup_agent.bat</span> كمسؤول (Run as administrator). يثبّت المتطلبات ويجرّب الاتصال ويسجل الوكيل ليشتغل تلقائياً مع تشغيل الجهاز.</li>
+    <li>ارجع لهذه الصفحة. عندما يظهر "متصل" افتح <b>مستكشف الجداول</b> ثم <b>ربط البيانات</b>.</li>
+  </ol>
+  <div class="alert alert-light border small mt-3 mb-0">
+    <b>الأمان:</b> أنشئ في قاعدة البيانات مستخدماً للقراءة فقط (مثال SQL Server في ملف README_AGENT). الوكيل يرفض أي أمر غير SELECT،
+    ولا يفتح أي منفذ على جهاز المحل؛ هو من يتصل بالسيرفر عبر HTTPS فقط.
+  </div>
+</div></div>
+</div>
+<div class="col-lg-5">
+<div class="card"><div class="card-body">
+  <h5>حالة الاتصال</h5>
+  <div id="st" class="mb-2"><span class="badge badge-gray">في انتظار الوكيل…</span></div>
+  <table class="tbl small"><tr><td class="text-muted">آخر ظهور</td><td id="seen">—</td></tr>
+  <tr><td class="text-muted">الجهاز</td><td id="host">—</td></tr>
+  <tr><td class="text-muted">قاعدة البيانات</td><td id="dbok">—</td></tr>
+  <tr><td class="text-muted">الجداول المكتشفة</td><td id="tbls">{{ tables_count }}</td></tr>
+  <tr><td class="text-muted">آخر مزامنة</td><td id="lsync">{{ p.last_sync_at|ago }}</td></tr></table>
+  <div id="err" class="small text-danger mt-2"></div>
+  <div class="d-flex gap-2 mt-3 flex-wrap">
+    <a href="/projects/{{ p.id }}/explorer" class="btn btn-outline-secondary btn-sm"><i class="bi bi-table"></i> مستكشف الجداول</a>
+    <a href="/projects/{{ p.id }}/mappings" class="btn btn-brand btn-sm"><i class="bi bi-diagram-3"></i> ربط البيانات</a>
+    <button class="btn btn-outline-secondary btn-sm" onclick="task('discover')"><i class="bi bi-arrow-repeat"></i> إعادة اكتشاف الجداول</button>
+  </div>
+</div></div>
+<div class="card mt-3"><div class="card-body small">
+  <h5>بيانات الوكيل</h5>
+  <div class="text-muted">رابط السيرفر</div><div class="mono mb-2">{{ server }}</div>
+  <div class="text-muted">الرمز السري للمشروع</div><div class="mono mb-2" style="word-break:break-all">{{ p.agent_token }}</div>
+  <form method="post" action="/projects/{{ p.id }}/agent/rotate" onsubmit="return confirm('الوكيل الحالي سيتوقف حتى تحدّث config.json بالرمز الجديد. متابعة؟')">
+    <button class="btn btn-link btn-sm p-0 text-danger">تغيير الرمز السري</button></form>
+</div></div>
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function poll(){
+ const j=await (await fetch('/projects/{{ p.id }}/agent/status')).json();
+ document.getElementById('st').innerHTML=j.online?'<span class="badge badge-soft"><i class="bi bi-check-circle"></i> متصل</span>':'<span class="badge badge-gray">غير متصل / في الانتظار</span>';
+ document.getElementById('seen').textContent=j.last_seen;
+ document.getElementById('host').textContent=(j.info.hostname||'—')+(j.info.version?' · v'+j.info.version:'');
+ document.getElementById('dbok').innerHTML=j.info.db_ok===undefined?'—':(j.info.db_ok?'<span class="up">متصلة</span>':'<span class="down">فشل: '+(j.info.db_error||'')+'</span>');
+ document.getElementById('tbls').textContent=j.tables;document.getElementById('lsync').textContent=j.last_sync;
+ document.getElementById('err').textContent=j.error||'';
+}
+async function task(kind){await fetch('/projects/{{ p.id }}/agent/task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind})});alert('تم إرسال الطلب، سينفذه الوكيل خلال دقيقة')}
+poll();setInterval(poll,8000);
+</script>
+{% endblock %}

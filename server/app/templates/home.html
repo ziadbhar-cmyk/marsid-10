@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block content %}
+{% set t = ov.totals %}
+<div class="top"><div><h1>اللوحة الموحدة</h1><div class="sub">كل الأنشطة في صفحة واحدة — {{ ov.today }}</div></div>
+<a href="/projects/new" class="btn btn-brand btn-sm"><i class="bi bi-plus"></i> مشروع جديد</a></div>
+
+<div class="row g-3 mb-3">
+ <div class="col-6 col-md-4 col-xl-2"><div class="card kpi h-100"><div class="l">مبيعات اليوم (الكل)</div><div class="v">{{ t.sales_today|money }}</div></div></div>
+ <div class="col-6 col-md-4 col-xl-2"><div class="card kpi h-100"><div class="l">مبيعات الشهر (الكل)</div><div class="v">{{ t.sales_mtd|money }}</div></div></div>
+ <div class="col-6 col-md-4 col-xl-2"><div class="card kpi h-100"><div class="l">صافي الخزينة اليوم</div><div class="v">{{ t.cash_net_today|money }}</div></div></div>
+ <div class="col-6 col-md-4 col-xl-2"><div class="card kpi h-100"><div class="l">ديون العملاء</div><div class="v">{{ t.receivables|money }}</div></div></div>
+ <div class="col-6 col-md-4 col-xl-2"><div class="card kpi h-100"><div class="l">مستحق للموردين</div><div class="v">{{ t.payables|money }}</div></div></div>
+ <div class="col-6 col-md-4 col-xl-2"><div class="card kpi h-100"><div class="l">قيمة المخزون</div><div class="v">{{ t.stock_value|money }}</div></div></div>
+</div>
+
+<div class="card mb-3"><div class="card-body"><h5>المبيعات اليومية لكل نشاط — آخر 30 يوم</h5><canvas id="ch" height="90"></canvas></div></div>
+
+<div class="card mb-3"><div class="card-body"><h5>الأنشطة</h5>
+<div class="table-responsive"><table class="tbl">
+<tr><th>المشروع</th><th>المنظومة</th><th>اليوم</th><th>أمس</th><th>الشهر</th><th>مقارنة بالشهر الماضي</th><th>ديون العملاء</th><th>آخر مزامنة</th><th>الحالة</th></tr>
+{% for r in ov.rows %}{% set p = r.p %}{% set k = r.k %}
+<tr><td><a href="/projects/{{ p.id }}" class="fw-bold"><span class="dot" style="background:{{ p.color }}"></span> {{ p.name }}</a>
+<div class="small text-muted">{{ ACTIVITIES.get(p.activity,'') }}</div></td>
+<td class="small">{{ p.system_name or CONNECTORS.get(p.connector,'—') }}</td>
+<td class="num fw-bold">{{ k.sales_today|money }}</td><td class="num">{{ k.sales_yesterday|money }}</td><td class="num">{{ k.sales_mtd|money }}</td>
+<td class="num">{% if k.growth_vs_pm is none %}—{% elif k.growth_vs_pm >= 0 %}<span class="up">▲ {{ '%.1f'|format(k.growth_vs_pm) }}%</span>{% else %}<span class="down">▼ {{ '%.1f'|format(-k.growth_vs_pm) }}%</span>{% endif %}</td>
+<td class="num">{{ k.receivables|money }}</td>
+<td class="small">{{ p.last_sync_at|ago }}</td>
+<td>{% if not p.connector %}<a href="/projects/{{ p.id }}/connect" class="badge badge-warn">أكمل الربط</a>
+{% elif p.status=='error' %}<span class="badge badge-err">خطأ</span>
+{% elif p.connector=='agent' and not agent_online(p) %}<span class="badge badge-warn">الوكيل غير متصل</span>
+{% elif p.last_sync_at %}<span class="badge badge-soft">يعمل</span>{% else %}<span class="badge badge-gray">بانتظار البيانات</span>{% endif %}</td></tr>
+{% endfor %}</table></div></div></div>
+
+<div class="card"><div class="card-body"><h5>آخر عمليات المزامنة</h5>
+{% if logs %}<table class="tbl small">{% for l in logs %}<tr><td>{{ l.at|local }}</td><td>{{ names.get(l.project_id,'') }}</td>
+<td>{{ DATASETS[l.dataset].label if l.dataset in DATASETS else '—' }}</td><td class="num">{{ l.rows|money }}</td>
+<td>{% if l.ok %}<span class="up">✓ {{ l.message }}</span>{% else %}<span class="down">✗ {{ l.message|truncate(80) }}</span>{% endif %}</td></tr>{% endfor %}</table>
+{% else %}<div class="text-muted small">لا يوجد بعد</div>{% endif %}</div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+Chart.defaults.font.family='Cairo';Chart.defaults.color='#6b7280';
+const C={{ ov.chart|tojson }};
+new Chart(document.getElementById('ch'),{type:'line',data:{labels:{{ ov.labels|tojson }}.map(s=>s.slice(5)),
+ datasets:C.map(c=>({label:c.name,data:c.data,borderColor:c.color,backgroundColor:c.color,tension:.3,pointRadius:1.5}))},
+ options:{plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,grid:{color:'#f0f1f3'}},x:{grid:{display:false}}}}});
+</script>
+{% endblock %}

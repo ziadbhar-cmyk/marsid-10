@@ -1,0 +1,7 @@
+{% if step %}
+<div class="steps">
+  <div class="st {% if step == 1 %}on{% elif step > 1 %}done{% endif %}"><b>1</b> البيانات الأساسية</div>
+  <div class="st {% if step == 2 %}on{% elif step > 2 %}done{% endif %}"><b>2</b> بيانات الربط</div>
+  <div class="st {% if step == 3 %}on{% endif %}"><b>3</b> فتح البيانات وتشغيل المتابعة</div>
+</div>
+{% endif %}

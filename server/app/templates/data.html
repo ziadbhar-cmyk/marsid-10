@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+{% set spec = DATASETS[dataset].fields %}
+<div class="top"><div><h1>البيانات — {{ p.name }}</h1><div class="sub">{{ total|money }} سجل في {{ DATASETS[dataset].label }}{% if total > 300 %} (يعرض أحدث 300){% endif %}</div></div>
+<a href="/projects/{{ p.id }}" class="btn btn-outline-secondary btn-sm">لوحة المشروع</a></div>
+<form class="d-flex gap-2 flex-wrap mb-3 align-items-center">
+<select name="dataset" class="form-select form-select-sm" style="width:auto" onchange="this.form.submit()">
+{% for k, v in DATASETS.items() %}<option value="{{ k }}" {% if k==dataset %}selected{% endif %}>{{ v.label }}</option>{% endfor %}</select>
+<input type="date" name="start" value="{{ start }}" class="form-control form-control-sm" style="width:155px">
+<input type="date" name="end" value="{{ end }}" class="form-control form-control-sm" style="width:155px">
+<input name="q" value="{{ q }}" placeholder="بحث: عميل، صنف، رقم فاتورة…" class="form-control form-control-sm" style="width:240px">
+<button class="btn btn-sm btn-outline-secondary">عرض</button>
+<a class="btn btn-sm btn-brand" href="/projects/{{ p.id }}/data.csv?dataset={{ dataset }}&start={{ start }}&end={{ end }}&q={{ q }}"><i class="bi bi-download"></i> تصدير CSV</a>
+</form>
+<div class="card"><div class="card-body"><div class="table-responsive"><table class="tbl">
+<tr>{% for f, s in spec.items() %}<th>{{ s[1] }}</th>{% endfor %}</tr>
+{% for r in rows %}<tr>{% for f, s in spec.items() %}{% set v = r[s[0]] %}
+<td class="{% if s[0] in ('qty','amount','amount2') %}num{% endif %}">{% if s[0] in ('qty','amount','amount2') %}{{ v|money(2) if v is not none else '' }}{% else %}{{ v if v is not none else '' }}{% endif %}</td>{% endfor %}</tr>
+{% else %}<tr><td colspan="9" class="empty">لا توجد بيانات</td></tr>{% endfor %}
+</table></div></div></div>
+{% endblock %}

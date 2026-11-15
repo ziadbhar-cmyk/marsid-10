@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="ar" dir="rtl"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دخول — {{ APP_NAME }}</title>
+<link href="/static/vendor/cairo.css" rel="stylesheet">
+<link href="/static/vendor/bootstrap.rtl.min.css" rel="stylesheet">
+<link href="/static/vendor/icons/bootstrap-icons.min.css" rel="stylesheet">
+<link href="/static/style.css" rel="stylesheet"></head>
+<body style="background:#10241e">
+<div class="d-flex align-items-center justify-content-center" style="min-height:100vh">
+  <form method="post" action="/login" class="card" style="width:360px">
+    <div class="card-body p-4">
+      <div class="text-center mb-3"><i class="bi bi-broadcast" style="font-size:36px;color:#0F6E56"></i>
+        <h4 class="fw-bold mt-1">{{ APP_NAME }}</h4><div class="text-muted small">متابعة كل أنشطتك من مكان واحد</div></div>
+      {% if error %}<div class="alert alert-danger py-2 small">{{ error }}</div>{% endif %}
+      <input type="hidden" name="next" value="{{ next }}">
+      <label class="form-label small">اسم المستخدم</label>
+      <input name="username" class="form-control mb-2" required autofocus>
+      <label class="form-label small">كلمة المرور</label>
+      <input name="password" type="password" class="form-control mb-3" required>
+      <button class="btn btn-brand w-100">دخول</button>
+    </div>
+  </form>
+</div></body></html>

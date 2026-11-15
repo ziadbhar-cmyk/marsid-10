@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top"><div><h1>مطابقة الأعمدة — {{ DATASETS[dataset].label }}</h1>
+<div class="sub">حددنا الأعمدة تلقائياً حسب العناوين. راجعها ثم اضغط استيراد.</div></div></div>
+{% if sheets|length > 1 %}
+<form class="mb-3 d-flex gap-2 align-items-center" style="max-width:520px"><input type="hidden" name="dataset" value="{{ dataset }}">
+<span class="small text-muted">الورقة:</span><select name="sheet" class="form-select form-select-sm" onchange="this.form.submit()">
+{% for s in sheets %}<option {% if s==sheet %}selected{% endif %}>{{ s }}</option>{% endfor %}</select></form>{% endif %}
+
+<form method="post" class="card"><div class="card-body">
+<input type="hidden" name="dataset" value="{{ dataset }}"><input type="hidden" name="sheet" value="{{ sheet }}">
+<div class="row g-2">
+{% for field, spec in DATASETS[dataset].fields.items() %}
+<div class="col-md-4"><label class="form-label small">{{ spec[1] }} {% if spec[2] %}<span class="text-danger">*</span>{% endif %}</label>
+<div class="input-group input-group-sm">
+<select name="col_{{ field }}" class="form-select"><option value="">— لا يوجد —</option>
+{% for h in headers %}<option value="{{ loop.index0 }}" {% if guess.get(field) == loop.index0 %}selected{% endif %}>{{ h }}</option>{% endfor %}</select>
+<input name="const_{{ field }}" class="form-control" placeholder="أو قيمة ثابتة" style="max-width:120px"></div></div>
+{% endfor %}
+</div>
+{% if DATASETS[dataset].kind == 'flow' %}
+<div class="form-check mt-3"><input class="form-check-input" type="checkbox" name="replace" value="1" id="rep">
+<label class="form-check-label small" for="rep">استبدال كل بيانات {{ DATASETS[dataset].label }} السابقة لهذا المشروع بهذا الملف</label></div>
+{% else %}<div class="small text-muted mt-3">هذه لقطة حالية: ستستبدل البيانات السابقة بالكامل.</div>{% endif %}
+<button class="btn btn-brand px-4 mt-3">استيراد</button>
+<h6 class="mt-4 fw-bold">معاينة الملف</h6>
+<div class="scroll"><table class="tbl small"><tr>{% for h in headers %}<th>{{ h }}</th>{% endfor %}</tr>
+{% for r in rows %}<tr>{% for c in r %}<td>{{ c if c is not none else '' }}</td>{% endfor %}</tr>{% endfor %}</table></div>
+</div></form>
+{% endblock %}

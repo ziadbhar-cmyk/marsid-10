@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top"><div><h1>بيانات الربط — {{ p.name }}</h1>
+<div class="sub">اختر كيف نسحب البيانات من {{ p.system_name or 'المنظومة' }}. الربط قراءة فقط ولا يعدّل أي شيء في المنظومة الأصلية.</div></div></div>
+{% include "_steps.html" %}
+
+<div class="row g-3 mb-3">
+  <div class="col-md-4"><div class="choice {% if p.connector=='odoo' %}sel{% endif %}" data-k="odoo">
+    <i class="bi bi-cloud-arrow-down"></i><h6 class="fw-bold mt-2">أودو Odoo</h6>
+    <div class="small text-muted">ربط مباشر من السيرفر عبر الواجهة البرمجية. لا يحتاج أي برنامج في المحل.</div></div></div>
+  <div class="col-md-4"><div class="choice {% if p.connector=='agent' %}sel{% endif %}" data-k="agent">
+    <i class="bi bi-pc-display"></i><h6 class="fw-bold mt-2">منظومة محلية على جهاز</h6>
+    <div class="small text-muted">العلامة، أبو غريس، منظومة المصنع… وكيل صغير على جهاز السيرفر يرسل البيانات تلقائياً.</div></div></div>
+  <div class="col-md-4"><div class="choice {% if p.connector=='excel' %}sel{% endif %}" data-k="excel">
+    <i class="bi bi-file-earmark-spreadsheet"></i><h6 class="fw-bold mt-2">ملفات Excel / CSV</h6>
+    <div class="small text-muted">رفع تقارير مصدّرة من المنظومة. مناسب كبداية أو كحل احتياطي.</div></div></div>
+</div>
+
+<div id="f-odoo" class="card frm" style="display:none"><div class="card-body">
+  <h5>بيانات الدخول إلى أودو</h5>
+  <form method="post" action="/projects/{{ p.id }}/connect/odoo" id="odooForm">
+  <div class="row g-3">
+    <div class="col-md-6"><label class="form-label">رابط أودو</label>
+      <input name="url" class="form-control mono" value="{{ c.url or '' }}" placeholder="https://company.odoo.com" required></div>
+    <div class="col-md-6"><label class="form-label">اسم قاعدة البيانات</label>
+      <input name="db_name" class="form-control mono" value="{{ c.db or '' }}" placeholder="company" required>
+      <div class="form-text">تجده في صفحة الدخول أو في /web/database/selector</div></div>
+    <div class="col-md-6"><label class="form-label">اسم المستخدم (البريد)</label>
+      <input name="username" class="form-control mono" value="{{ c.username or '' }}" required></div>
+    <div class="col-md-6"><label class="form-label">كلمة المرور أو مفتاح API</label>
+      <input name="password" type="password" class="form-control mono" value="{{ c.password or '' }}" required>
+      <div class="form-text">الأفضل: مستخدم مخصص للقراءة + مفتاح API من (الإعدادات ← الأمان ← مفاتيح API)</div></div>
+  </div>
+  <div id="odooRes" class="mt-3"></div>
+  <div class="mt-3 d-flex gap-2">
+    <button type="button" class="btn btn-outline-secondary" onclick="testOdoo()"><i class="bi bi-plug"></i> اختبار الاتصال</button>
+    <button class="btn btn-brand px-4">حفظ وتشغيل المزامنة <i class="bi bi-arrow-left"></i></button>
+  </div>
+  </form>
+</div></div>
+
+<div id="f-agent" class="card frm" style="display:none"><div class="card-body">
+  <h5>المنظومة المحلية</h5>
+  <form method="post" action="/projects/{{ p.id }}/connect/agent">
+  <div class="row g-3">
+    <div class="col-md-6"><label class="form-label">نوع قاعدة البيانات</label>
+      <select name="engine" class="form-select">
+        {% for k, v in DB_ENGINES.items() %}<option value="{{ k }}" {% if c.engine == k %}selected{% endif %}>{{ v }}</option>{% endfor %}
+      </select>
+      <div class="form-text">لو ما تعرفه: افتح Services في ويندوز وابحث عن SQL Server أو MySQL أو Firebird. أغلب المنظومات المحلية تستخدم SQL Server.</div></div>
+    <div class="col-md-3"><label class="form-label">المزامنة كل (دقيقة)</label>
+      <input name="interval" type="number" min="5" class="form-control" value="{{ c.interval or 30 }}"></div>
+  </div>
+  <button class="btn btn-brand px-4 mt-3">التالي: تنزيل وكيل المزامنة <i class="bi bi-arrow-left"></i></button>
+  </form>
+</div></div>
+
+<div id="f-excel" class="card frm" style="display:none"><div class="card-body">
+  <h5>رفع ملفات</h5>
+  <p class="text-muted small mb-3">صدّر تقرير المبيعات أو الأرصدة أو المخزون من المنظومة إلى Excel وارفعه. تقدر تحدد الأعمدة مرة واحدة وتكرر الرفع.</p>
+  <form method="post" action="/projects/{{ p.id }}/connect/excel"><button class="btn btn-brand px-4">التالي: رفع ملف <i class="bi bi-arrow-left"></i></button></form>
+</div></div>
+{% endblock %}
+{% block scripts %}
+<script>
+function show(k){document.querySelectorAll('.choice').forEach(e=>e.classList.toggle('sel',e.dataset.k==k));
+ document.querySelectorAll('.frm').forEach(e=>e.style.display='none');document.getElementById('f-'+k).style.display='block'}
+document.querySelectorAll('.choice').forEach(e=>e.onclick=()=>show(e.dataset.k));
+{% if p.connector %}show('{{ p.connector }}');{% endif %}
+async function testOdoo(){
+ const r=document.getElementById('odooRes');r.innerHTML='<div class="text-muted small">جاري الاختبار…</div>';
+ const fd=new FormData(document.getElementById('odooForm'));
+ const res=await fetch('/projects/{{ p.id }}/connect/odoo/test',{method:'POST',body:fd});const j=await res.json();
+ if(j.ok){r.innerHTML=`<div class="alert alert-success py-2 small mb-0">تم الاتصال بنجاح — إصدار أودو ${j.version}<br>الشركات: ${j.companies.join('، ')}<br>الموديولات المثبتة: ${j.modules.join('، ')||'—'}</div>`}
+ else{r.innerHTML=`<div class="alert alert-danger py-2 small mb-0">${j.error}</div>`}
+}
+</script>
+{% endblock %}

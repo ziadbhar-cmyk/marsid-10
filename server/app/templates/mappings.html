@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top"><div><h1>ربط البيانات — {{ p.name }}</h1>
+<div class="sub">لكل نوع بيانات استعلام SELECT يقرأ من قاعدة {{ p.system_name or 'المنظومة' }} ويسمّي الأعمدة بالأسماء الموحدة. التعديل من هنا ويصل للوكيل تلقائياً.</div></div>
+<div class="d-flex gap-2"><a href="/projects/{{ p.id }}/explorer" class="btn btn-outline-secondary btn-sm"><i class="bi bi-table"></i> مستكشف الجداول</a>
+<a href="/projects/{{ p.id }}" class="btn btn-brand btn-sm"><i class="bi bi-speedometer2"></i> لوحة المشروع</a></div></div>
+
+<div class="card mb-3"><div class="card-body">
+<h5>الربط الحالي</h5>
+{% if not p.mappings %}<div class="text-muted small">لا يوجد ربط بعد. ابدأ بالمبيعات من النموذج تحت.</div>{% else %}
+<table class="tbl"><tr><th>البيانات</th><th>الطريقة</th><th>آخر قيمة متزامنة</th><th>آخر تشغيل</th><th>السجلات</th><th>الحالة</th><th></th></tr>
+{% for m in p.mappings %}<tr>
+<td class="fw-bold">{{ DATASETS[m.dataset].label }}</td>
+<td>{{ 'تراكمي (الجديد فقط)' if m.mode=='incremental' else 'كامل (استبدال)' }}</td>
+<td class="mono small">{{ m.watermark_value or '—' }}</td>
+<td class="small">{{ m.last_run|ago }}</td><td class="num">{{ m.last_rows|money }}</td>
+<td>{% if not m.enabled %}<span class="badge badge-gray">موقوف</span>{% elif m.last_error %}<span class="badge badge-err" title="{{ m.last_error }}">خطأ</span>{% elif m.last_run %}<span class="badge badge-soft">يعمل</span>{% else %}<span class="badge badge-warn">بانتظار الوكيل</span>{% endif %}</td>
+<td class="text-nowrap">
+ <a class="btn btn-sm btn-outline-secondary" href="?edit={{ m.id }}">تعديل</a>
+ <form method="post" action="/projects/{{ p.id }}/mappings/{{ m.id }}/toggle" class="d-inline"><button class="btn btn-sm btn-outline-secondary">{{ 'إيقاف' if m.enabled else 'تشغيل' }}</button></form>
+ <form method="post" action="/projects/{{ p.id }}/mappings/{{ m.id }}/reset" class="d-inline" onsubmit="return confirm('حذف البيانات المجمعة لهذا النوع وإعادة سحبها من البداية؟')"><button class="btn btn-sm btn-outline-warning">إعادة سحب</button></form>
+ <form method="post" action="/projects/{{ p.id }}/mappings/{{ m.id }}/delete" class="d-inline" onsubmit="return confirm('حذف هذا الربط؟')"><button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i></button></form>
+</td></tr>
+{% if m.last_error %}<tr><td colspan="7" class="small text-danger mono">{{ m.last_error }}</td></tr>{% endif %}
+{% endfor %}</table>{% endif %}
+</div></div>
+
+<div class="row g-3">
+<div class="col-lg-8"><form method="post" action="/projects/{{ p.id }}/mappings" class="card" id="mf"><div class="card-body">
+<h5>{% if cur %}تعديل ربط {{ DATASETS[cur.dataset].label }}{% else %}إضافة ربط جديد{% endif %}</h5>
+<input type="hidden" name="mid" value="{{ cur.id if cur else 0 }}">
+<div class="row g-2 mb-2">
+ <div class="col-md-5"><label class="form-label small">نوع البيانات</label>
+  <select name="dataset" id="ds" class="form-select">{% for k, v in DATASETS.items() %}<option value="{{ k }}" {% if k==ds %}selected{% endif %}>{{ v.label }}</option>{% endfor %}</select></div>
+ <div class="col-md-4"><label class="form-label small">طريقة السحب</label>
+  <select name="mode" id="mode" class="form-select"><option value="incremental" {% if cur and cur.mode=='incremental' %}selected{% endif %}>تراكمي: الجديد والمعدّل فقط</option>
+  <option value="full" {% if cur and cur.mode=='full' %}selected{% endif %}>كامل: استبدال كل مرة</option></select></div>
+ <div class="col-md-3"><label class="form-label small">عمود المتابعة</label>
+  <input name="watermark_field" class="form-control mono" value="{{ cur.watermark_field if cur else '_wm' }}"></div>
+</div>
+<textarea name="sql" id="sql" class="form-control code" spellcheck="false">{{ sql }}</textarea>
+<div class="form-text">في الوضع التراكمي اكتب <span class="mono">{since}</span> في شرط WHERE إذا كان عمود المتابعة تاريخاً، أو <span class="mono">{since_num}</span> إذا كان رقماً تسلسلياً (ID). يُستبدل تلقائياً بآخر قيمة تمت مزامنتها.</div>
+<div class="d-flex gap-2 mt-3">
+ <button type="button" class="btn btn-outline-secondary" onclick="testSql()"><i class="bi bi-play"></i> تجربة الاستعلام (أول 20 سجل)</button>
+ <button class="btn btn-brand px-4">حفظ وتشغيل</button>
+ {% if cur %}<a href="/projects/{{ p.id }}/mappings" class="btn btn-link">إلغاء</a>{% endif %}
+</div>
+<div id="res" class="mt-3"></div>
+</div></form></div>
+
+<div class="col-lg-4"><div class="card"><div class="card-body">
+<h5>الأعمدة المطلوبة</h5>
+<div id="fields"></div>
+<hr><div class="small text-muted">
+<b>عمود line أو uid</b> (اختياري): رقم السطر/المعرف الفريد، يمنع تكرار السجلات.<br>
+<b>_wm</b>: عمود المتابعة، غالباً تاريخ آخر تعديل.<br>
+المرتجعات: أرسلها كمبيعات بقيمة سالبة.<br>
+أرصدة الموردين: اكتبها موجبة (المستحق لهم).</div>
+</div></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const DS={{ DATASETS|tojson }};const ORD={{ DS_ORDER|tojson }};const TPL={{ templates_sql|tojson }};
+const ds=document.getElementById('ds'),sql=document.getElementById('sql'),mode=document.getElementById('mode');
+function renderFields(){const f=DS[ds.value].fields;let h='<table class="tbl small">';
+ for(const k of ORD[ds.value]){h+=`<tr><td class="mono">${k}</td><td>${f[k][1]}</td><td>${f[k][2]?'<span class="badge badge-warn">مطلوب</span>':''}</td></tr>`}
+ document.getElementById('fields').innerHTML=h+'</table>';
+ if(DS[ds.value].kind=='snapshot'){mode.value='full';mode.disabled=true}else{mode.disabled=false}}
+ds.onchange=()=>{ {% if not cur %}sql.value=TPL[ds.value]||'';{% endif %}renderFields()};renderFields();
+document.getElementById('mf').onsubmit=()=>{mode.disabled=false};
+function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+async function testSql(){
+ const box=document.getElementById('res');box.innerHTML='<div class="small text-muted">أُرسل للوكيل… في انتظار النتيجة (حتى دقيقة)</div>';
+ const r=await fetch('/projects/{{ p.id }}/agent/task',{method:'POST',headers:{'Content-Type':'application/json'},
+   body:JSON.stringify({kind:'test_query',payload:{sql:sql.value,limit:20}})});
+ const {id}=await r.json();
+ for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,3000));
+  const j=await (await fetch('/projects/{{ p.id }}/agent/task/'+id)).json();
+  if(j.status=='done'||j.status=='error'){box.innerHTML=show(j.result);return}}
+ box.innerHTML='<div class="alert alert-warning small py-2">الوكيل لم يرد. تأكد أنه يعمل على جهاز المحل.</div>';
+}
+function show(res){
+ if(!res||!res.ok)return '<div class="alert alert-danger small py-2 mono">'+esc(res&&res.error)+'</div>';
+ const d=res.data;const cols=d.columns.map(c=>c.toLowerCase());const f=DS[ds.value].fields;
+ const missing=ORD[ds.value].filter(k=>f[k][2]&&!cols.includes(k));
+ let h=missing.length?`<div class="alert alert-warning small py-2">أعمدة مطلوبة ناقصة: <span class="mono">${missing.join(', ')}</span></div>`:'<div class="alert alert-success small py-2">الأعمدة صحيحة ✓ — '+d.rows.length+' سجل في العينة</div>';
+ h+='<div class="scroll" style="max-height:320px"><table class="tbl small"><tr>'+d.columns.map(c=>'<th class="mono">'+esc(c)+'</th>').join('')+'</tr>';
+ d.rows.forEach(r=>{h+='<tr>'+r.map(v=>'<td class="mono">'+esc(v).slice(0,50)+'</td>').join('')+'</tr>'});
+ return h+'</table></div>';
+}
+</script>
+{% endblock %}

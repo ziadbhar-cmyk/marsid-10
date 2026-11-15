@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top"><div><h1>{% if p %}تعديل بيانات {{ p.name }}{% else %}مشروع جديد{% endif %}</h1>
+<div class="sub">البيانات الأساسية للنشاط — تظهر في اللوحات والتقارير</div></div></div>
+{% if not p %}{% include "_steps.html" %}{% endif %}
+{% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+<form method="post" class="card"><div class="card-body">
+<div class="row g-3">
+  <div class="col-md-6"><label class="form-label">اسم المشروع / الشركة *</label>
+    <input name="name" class="form-control" value="{{ p.name if p else '' }}" placeholder="مثال: محلات توايس للملابس" required></div>
+  <div class="col-md-3"><label class="form-label">النشاط</label>
+    <select name="activity" class="form-select">
+      {% for k, v in ACTIVITIES.items() %}<option value="{{ k }}" {% if p and p.activity == k %}selected{% endif %}>{{ v }}</option>{% endfor %}
+    </select></div>
+  <div class="col-md-3"><label class="form-label">العملة</label>
+    <input name="currency" class="form-control" value="{{ p.currency if p else 'د.ل' }}"></div>
+  <div class="col-md-6"><label class="form-label">المنظومة المستخدمة</label>
+    <input name="system_name" class="form-control" value="{{ p.system_name if p else '' }}" placeholder="أودو / العلامة / أبو غريس 2024 / منظومة المصنع"></div>
+  <div class="col-md-6"><label class="form-label">المالك / المسؤول</label>
+    <input name="owner" class="form-control" value="{{ p.owner if p else '' }}"></div>
+  <div class="col-md-6"><label class="form-label">المدينة / الموقع</label>
+    <input name="city" class="form-control" value="{{ p.city if p else 'طرابلس' }}"></div>
+  <div class="col-md-6"><label class="form-label">الفروع / نقاط البيع</label>
+    <input name="branches" class="form-control" value="{{ p.branches if p else '' }}" placeholder="المحل الرئيسي، فرع ٢، الصفحة، التوصيل"></div>
+  <div class="col-md-2"><label class="form-label">لون المشروع</label>
+    <input type="color" name="color" class="form-control form-control-color w-100" value="{{ p.color if p else '#0F6E56' }}"></div>
+  <div class="col-md-10"><label class="form-label">ملاحظات</label>
+    <input name="notes" class="form-control" value="{{ p.notes if p else '' }}"></div>
+</div>
+<div class="mt-4 d-flex gap-2">
+  <button class="btn btn-brand px-4">{% if p %}حفظ{% else %}التالي: بيانات الربط <i class="bi bi-arrow-left"></i>{% endif %}</button>
+  {% if p %}<a href="/projects/{{ p.id }}/connect" class="btn btn-outline-secondary">تغيير طريقة الربط</a>{% endif %}
+</div>
+</div></form>
+{% if p %}
+<form method="post" action="/projects/{{ p.id }}/delete" class="mt-4" onsubmit="return confirm('سيتم حذف المشروع وكل بياناته المجمعة (المنظومة الأصلية لا تتأثر). متأكد؟')">
+  <button class="btn btn-outline-danger btn-sm"><i class="bi bi-trash"></i> حذف المشروع</button>
+</form>
+{% endif %}
+{% endblock %}

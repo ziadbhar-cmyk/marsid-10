@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top"><div><h1>الإعدادات والتنبيهات</h1><div class="sub">ملخص يومي مجاني يصلك على تيليجرام</div></div></div>
+{% if msg %}<div class="alert alert-info py-2">{{ msg }}</div>{% endif %}
+<div class="row g-3">
+<div class="col-lg-6"><form method="post" class="card"><div class="card-body">
+<h5>تيليجرام</h5>
+<ol class="small text-muted">
+<li>في تيليجرام افتح <span class="mono">@BotFather</span> واكتب <span class="mono">/newbot</span> وانسخ الرمز (Token).</li>
+<li>افتح البوت الجديد واضغط Start، ثم افتح <span class="mono">@userinfobot</span> لتعرف رقمك (Chat ID).</li>
+<li>لإرسال الملخص لمجموعة: أضف البوت للمجموعة واستخدم رقم المجموعة (يبدأ بـ -100).</li></ol>
+<label class="form-label small">Bot Token</label><input name="telegram_token" class="form-control mono mb-2" value="{{ s.telegram_token }}">
+<label class="form-label small">Chat ID</label><input name="telegram_chat" class="form-control mono mb-2" value="{{ s.telegram_chat }}">
+<label class="form-label small">ساعة إرسال الملخص اليومي (بتوقيت طرابلس)</label>
+<input name="report_hour" type="number" min="0" max="23" class="form-control mb-3" style="width:120px" value="{{ s.report_hour or 23 }}">
+<button class="btn btn-brand">حفظ</button>
+</div></form>
+<form method="post" action="/settings/test" class="mt-2"><button class="btn btn-outline-secondary btn-sm"><i class="bi bi-send"></i> إرسال الملخص الآن للتجربة</button></form>
+</div>
+<div class="col-lg-6"><div class="card"><div class="card-body"><h5>معاينة الملخص</h5>
+<pre class="small" style="white-space:pre-wrap;direction:rtl;text-align:right;font-family:Cairo">{{ preview }}</pre></div></div></div>
+</div>
+{% endblock %}

@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% set k = d.kpi %}{% set cur = p.currency %}
+{% macro kpi(label, value, sub='', cls='') -%}
+<div class="col-6 col-md-4 col-xl-3"><div class="card kpi h-100"><div class="l">{{ label }}</div>
+<div class="v {{ cls }}">{{ value }}</div>{% if sub %}<div class="s">{{ sub|safe }}</div>{% endif %}</div></div>
+{%- endmacro %}
+{% macro growth(g) -%}{% if g is none %}—{% elif g >= 0 %}<span class="up">▲ {{ '%.1f'|format(g) }}%</span>{% else %}<span class="down">▼ {{ '%.1f'|format(-g) }}%</span>{% endif %}{%- endmacro %}
+{% macro toplist(title, rows, icon) -%}
+<div class="card h-100"><div class="card-body"><h5><i class="bi {{ icon }}"></i> {{ title }}</h5>
+{% if rows %}{% set mx = rows[0].v or 1 %}<table class="tbl">{% for r in rows %}<tr><td style="width:55%">{{ r.k }}</td>
+<td style="width:25%"><div class="bar"><span style="width:{{ [100*(r.v/mx if mx else 0),2]|max|round }}%"></span></div></td>
+<td class="num">{{ r.v|money }}</td></tr>{% endfor %}</table>{% else %}<div class="text-muted small">لا توجد بيانات</div>{% endif %}
+</div></div>
+{%- endmacro %}
+
+{% block content %}
+<div class="top">
+  <div><h1><span class="dot" style="background:{{ p.color }};width:12px;height:12px"></span> {{ p.name }}</h1>
+  <div class="sub">{{ ACTIVITIES.get(p.activity,'') }} · {{ p.system_name or CONNECTORS.get(p.connector,'') }} ·
+   آخر مزامنة: <b>{{ p.last_sync_at|ago }}</b>
+   {% if p.status=='error' %}<span class="badge badge-err">يوجد خطأ</span>{% elif p.connector=='agent' %}{% if agent_online(p) %}<span class="badge badge-soft">الوكيل متصل</span>{% else %}<span class="badge badge-warn">الوكيل غير متصل</span>{% endif %}{% endif %}</div></div>
+  <div class="d-flex gap-2 flex-wrap">
+   {% if p.connector in ('odoo','agent') %}<form method="post" action="/projects/{{ p.id }}/sync"><button class="btn btn-brand btn-sm"><i class="bi bi-arrow-repeat"></i> مزامنة الآن</button></form>{% endif %}
+   {% if p.connector=='agent' %}<a href="/projects/{{ p.id }}/mappings" class="btn btn-outline-secondary btn-sm"><i class="bi bi-diagram-3"></i> ربط البيانات</a>
+   <a href="/projects/{{ p.id }}/agent" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pc-display"></i> الوكيل</a>{% endif %}
+   <a href="/projects/{{ p.id }}/import" class="btn btn-outline-secondary btn-sm"><i class="bi bi-upload"></i> رفع ملف</a>
+   <a href="/projects/{{ p.id }}/data" class="btn btn-outline-secondary btn-sm"><i class="bi bi-table"></i> البيانات</a>
+   <a href="/projects/{{ p.id }}/connect" class="btn btn-outline-secondary btn-sm"><i class="bi bi-plug"></i> الربط</a>
+   <a href="/projects/{{ p.id }}/edit" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i></a>
+  </div>
+</div>
+
+{% if welcome %}<div class="alert alert-success">تم حفظ الربط. المزامنة الأولى تعمل الآن في الخلفية، وقد تأخذ دقائق حسب حجم البيانات. الصفحة ستتحدث تلقائياً.</div>{% endif %}
+{% if imported %}<div class="alert alert-success">تم استيراد {{ imported }} سجل.</div>{% endif %}
+{% if p.last_error %}<div class="alert alert-danger small mono" style="white-space:pre-wrap">{{ p.last_error }}</div>{% endif %}
+
+<form class="d-flex gap-2 align-items-center mb-3 flex-wrap"><span class="small text-muted">الفترة للرسوم والترتيب:</span>
+<input type="date" name="start" value="{{ d.start }}" class="form-control form-control-sm" style="width:160px">
+<input type="date" name="end" value="{{ d.end }}" class="form-control form-control-sm" style="width:160px">
+<button class="btn btn-sm btn-outline-secondary">عرض</button></form>
+
+<div class="row g-3 mb-3">
+{{ kpi('مبيعات اليوم', k.sales_today|money ~ ' ' ~ cur, 'أمس: ' ~ k.sales_yesterday|money ~ ' · ' ~ k.invoices_today ~ ' فاتورة') }}
+{{ kpi('مبيعات الشهر', k.sales_mtd|money ~ ' ' ~ cur, 'مقارنة بنفس الفترة من الشهر الماضي: ' ~ growth(k.growth_vs_pm)) }}
+{{ kpi('عدد الفواتير هذا الشهر', k.invoices_mtd|money, 'متوسط الفاتورة: ' ~ k.avg_invoice_mtd|money) }}
+{% if k.gross_profit_mtd is not none %}{{ kpi('مجمل الربح هذا الشهر', k.gross_profit_mtd|money, 'هامش: ' ~ ('%.1f'|format(k.margin_mtd)) ~ '%') }}{% endif %}
+{% if d.datasets.purchases %}{{ kpi('مشتريات الشهر', k.purchases_mtd|money) }}{% endif %}
+{% if d.datasets.expenses %}{{ kpi('مصروفات الشهر', k.expenses_mtd|money) }}{% endif %}
+{% if d.datasets.cash %}{{ kpi('الخزينة اليوم (صافي)', (k.cash_in_today - k.cash_out_today)|money, 'مقبوض ' ~ k.cash_in_today|money ~ ' · مدفوع ' ~ k.cash_out_today|money) }}{% endif %}
+{% if d.datasets.balances %}{{ kpi('ديون على العملاء', k.receivables|money) }}{{ kpi('مستحق للموردين', k.payables|money) }}{% endif %}
+{% if d.datasets.stock %}{{ kpi('قيمة المخزون', k.stock_value|money, k.stock_items ~ ' صنف متوفر') }}{% endif %}
+{% if d.datasets.production %}{{ kpi('كمية الإنتاج هذا الشهر', k.production_mtd|money) }}{% endif %}
+</div>
+
+{% if not d.datasets.sales and not d.datasets.stock and not d.datasets.balances %}
+<div class="card mb-3"><div class="empty"><i class="bi bi-hourglass-split" style="font-size:28px"></i><br>لا توجد بيانات بعد.
+{% if p.connector=='agent' %}<br><a href="/projects/{{ p.id }}/mappings">اربط جدول المبيعات</a> ليبدأ الوكيل بالإرسال.{% elif p.connector=='excel' %}<br><a href="/projects/{{ p.id }}/import">ارفع أول ملف</a>.{% else %}<br>المزامنة الأولى قيد التشغيل…{% endif %}</div></div>
+{% endif %}
+
+<div class="row g-3 mb-3">
+ <div class="col-xl-8"><div class="card h-100"><div class="card-body"><h5>الحركة اليومية</h5><canvas id="ch" height="110"></canvas></div></div></div>
+ <div class="col-xl-4"><div class="card h-100"><div class="card-body"><h5>المبيعات حسب الفرع</h5><canvas id="br" height="220"></canvas></div></div></div>
+</div>
+<div class="row g-3 mb-3">
+ <div class="col-lg-4">{{ toplist('أعلى العملاء', d.top_customers, 'bi-people') }}</div>
+ <div class="col-lg-4">{{ toplist('الأصناف الأكثر مبيعاً', d.top_items, 'bi-box-seam') }}</div>
+ <div class="col-lg-4">{{ toplist('المبيعات حسب القناة', d.by_channel, 'bi-shop') }}</div>
+</div>
+<div class="row g-3 mb-3">
+ {% if d.datasets.balances %}<div class="col-lg-4">{{ toplist('أكبر ديون العملاء', d.top_receivables, 'bi-person-exclamation') }}</div>
+ <div class="col-lg-4">{{ toplist('أكبر المستحقات للموردين', d.top_payables, 'bi-truck') }}</div>{% endif %}
+ {% if d.datasets.expenses %}<div class="col-lg-4">{{ toplist('بنود المصروفات', d.top_expenses, 'bi-receipt') }}</div>{% endif %}
+ {% if d.datasets.purchases %}<div class="col-lg-4">{{ toplist('أكبر الموردين (مشتريات)', d.top_suppliers, 'bi-cart') }}</div>{% endif %}
+ {% if d.datasets.production %}<div class="col-lg-4">{{ toplist('الإنتاج حسب المنتج (كمية)', d.production_items, 'bi-gear-wide-connected') }}</div>{% endif %}
+ {% if d.datasets.stock %}<div class="col-lg-4">{{ toplist('المخزون حسب المخزن (قيمة)', d.stock_by_wh, 'bi-buildings') }}</div>
+ <div class="col-lg-4"><div class="card h-100"><div class="card-body"><h5><i class="bi bi-exclamation-triangle"></i> أصناف قاربت على النفاد</h5>
+ {% if d.low_stock %}<table class="tbl">{% for r in d.low_stock %}<tr><td>{{ r.item }}</td><td class="small text-muted">{{ r.wh }}</td><td class="num {% if r.qty<=0 %}down{% endif %}">{{ r.qty|money }}</td></tr>{% endfor %}</table>
+ {% else %}<div class="text-muted small">لا يوجد</div>{% endif %}</div></div></div>{% endif %}
+</div>
+
+<div class="row g-3">
+ {% if p.connector=='odoo' %}<div class="col-lg-6"><div class="card"><div class="card-body"><h5>البيانات المسحوبة من أودو</h5>
+ <table class="tbl"><tr><th>النوع</th><th>آخر تشغيل</th><th>سجلات</th><th></th></tr>
+ {% for m in p.mappings %}<tr><td>{{ DATASETS[m.dataset].label }}</td><td class="small">{{ m.last_run|ago }}</td><td class="num">{{ m.last_rows|money }}</td>
+ <td>{% if m.last_error %}<span class="badge badge-err" title="{{ m.last_error }}">خطأ</span>{% endif %}
+ <form method="post" action="/projects/{{ p.id }}/mappings/{{ m.id }}/toggle" class="d-inline"><button class="btn btn-sm btn-link">{{ 'إيقاف' if m.enabled else 'تشغيل' }}</button></form></td></tr>{% endfor %}</table>
+ <form method="post" action="/projects/{{ p.id }}/sync" onsubmit="return confirm('إعادة سحب كل البيانات من البداية؟')"><input type="hidden" name="full" value="1"><button class="btn btn-sm btn-outline-secondary mt-2">إعادة مزامنة كاملة</button></form>
+ </div></div></div>{% endif %}
+ <div class="col-lg-6"><div class="card"><div class="card-body"><h5>سجل المزامنة</h5>
+ {% if logs %}<table class="tbl small">{% for l in logs %}<tr><td>{{ l.at|local }}</td><td>{{ DATASETS[l.dataset].label if l.dataset in DATASETS else '—' }}</td>
+ <td class="num">{{ l.rows|money }}</td><td>{% if l.ok %}<span class="up">✓</span>{% else %}<span class="down" title="{{ l.message }}">✗ {{ l.message|truncate(60) }}</span>{% endif %}</td></tr>{% endfor %}</table>
+ {% else %}<div class="text-muted small">لا يوجد بعد</div>{% endif %}</div></div></div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+Chart.defaults.font.family='Cairo';Chart.defaults.color='#6b7280';
+const L={{ d.labels|tojson }}.map(s=>s.slice(5));
+new Chart(document.getElementById('ch'),{type:'line',data:{labels:L,datasets:[
+ {label:'المبيعات',data:{{ d.sales|tojson }},borderColor:'{{ p.color }}',backgroundColor:'{{ p.color }}22',fill:true,tension:.3,pointRadius:2},
+ {% if d.datasets.purchases %}{label:'المشتريات',data:{{ d.purchases|tojson }},borderColor:'#854F0B',tension:.3,pointRadius:0},{% endif %}
+ {% if d.datasets.expenses %}{label:'المصروفات',data:{{ d.expenses|tojson }},borderColor:'#A32D2D',tension:.3,pointRadius:0,borderDash:[4,3]},{% endif %}
+]},options:{plugins:{legend:{position:'bottom'}},scales:{y:{beginAtZero:true,grid:{color:'#f0f1f3'}},x:{grid:{display:false}}}}});
+const B={{ d.by_branch|tojson }};
+new Chart(document.getElementById('br'),{type:'bar',data:{labels:B.map(x=>x.k),datasets:[{data:B.map(x=>x.v),backgroundColor:'{{ p.color }}',borderRadius:4}]},
+ options:{indexAxis:'y',plugins:{legend:{display:false}},scales:{x:{beginAtZero:true,grid:{color:'#f0f1f3'}},y:{grid:{display:false}}}}});
+{% if welcome %}setTimeout(()=>location.href=location.pathname,20000);{% endif %}
+</script>
+{% endblock %}

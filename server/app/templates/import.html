@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top"><div><h1>رفع ملف بيانات — {{ p.name }}</h1>
+<div class="sub">Excel (xlsx) أو CSV مصدّر من المنظومة. بعد الرفع تحدد أي عمود يقابل أي حقل.</div></div>
+<a href="/projects/{{ p.id }}" class="btn btn-outline-secondary btn-sm">لوحة المشروع</a></div>
+{% include "_steps.html" %}
+<form method="post" action="/projects/{{ p.id }}/import/upload" enctype="multipart/form-data" class="card" style="max-width:720px"><div class="card-body">
+  <label class="form-label">نوع البيانات في الملف</label>
+  <select name="dataset" class="form-select mb-3">{% for k, v in DATASETS.items() %}<option value="{{ k }}">{{ v.label }}</option>{% endfor %}</select>
+  <label class="form-label">الملف</label>
+  <input type="file" name="file" class="form-control mb-3" accept=".xlsx,.xlsm,.csv,.txt" required>
+  <button class="btn btn-brand px-4">رفع ومتابعة <i class="bi bi-arrow-left"></i></button>
+  <div class="form-text mt-2">ملفات .xls القديمة: افتحها واحفظها بصيغة .xlsx أولاً. تكرار رفع نفس الفواتير لا يكرر البيانات طالما فيها رقم فاتورة.</div>
+</div></form>
+{% endblock %}

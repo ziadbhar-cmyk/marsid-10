@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{{ APP_NAME }}{% endblock %}</title>
+<link href="/static/vendor/cairo.css" rel="stylesheet">
+<link href="/static/vendor/bootstrap.rtl.min.css" rel="stylesheet">
+<link href="/static/vendor/icons/bootstrap-icons.min.css" rel="stylesheet">
+<link href="/static/style.css" rel="stylesheet">
+<script src="/static/vendor/chart.umd.min.js"></script>
+</head>
+<body>
+<div class="layout">
+  <aside class="side">
+    <div class="logo"><i class="bi bi-broadcast"></i> {{ APP_NAME }}</div>
+    <a href="/" class="{% if request.url.path == '/' %}active{% endif %}"><i class="bi bi-grid-1x2"></i> اللوحة الموحدة</a>
+    <div class="sec">المشاريع</div>
+    {% for np in nav_projects or [] %}
+      <a href="/projects/{{ np.id }}" class="{% if request.url.path.startswith('/projects/' ~ np.id) %}active{% endif %}">
+        <span class="dot" style="background:{{ np.color }}"></span> {{ np.name }}
+      </a>
+    {% endfor %}
+    <a href="/projects/new"><i class="bi bi-plus-circle"></i> مشروع جديد</a>
+    <div class="sec">النظام</div>
+    <a href="/settings" class="{% if request.url.path == '/settings' %}active{% endif %}"><i class="bi bi-gear"></i> الإعدادات والتنبيهات</a>
+    <a href="/logout"><i class="bi bi-box-arrow-left"></i> خروج</a>
+  </aside>
+  <main class="main">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+<script src="/static/vendor/bootstrap.bundle.min.js"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

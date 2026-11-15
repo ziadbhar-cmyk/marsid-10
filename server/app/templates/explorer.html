@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="top"><div><h1>مستكشف الجداول — {{ p.name }}</h1>
+<div class="sub">كل الجداول التي وجدها الوكيل في قاعدة البيانات، مع الأعمدة وعينة من البيانات. استخدمها لكتابة استعلامات الربط.</div></div>
+<div class="d-flex gap-2"><a href="/projects/{{ p.id }}/mappings" class="btn btn-brand btn-sm">ربط البيانات</a>
+<a href="/projects/{{ p.id }}/agent" class="btn btn-outline-secondary btn-sm">حالة الوكيل</a></div></div>
+
+<form class="mb-3 d-flex gap-2" style="max-width:520px"><input name="q" value="{{ q }}" class="form-control" placeholder="ابحث باسم جدول أو عمود (مثال: invoice, فاتورة, date)">
+<button class="btn btn-outline-secondary">بحث</button></form>
+
+{% if not tables %}<div class="card"><div class="empty">لا توجد جداول بعد. تأكد أن الوكيل متصل، أو اضغط "إعادة اكتشاف الجداول" في صفحة الوكيل.</div></div>{% endif %}
+<div class="row g-3">
+{% for t in tables[:150] %}
+<div class="col-12"><div class="card"><div class="card-body">
+  <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap gap-2">
+    <div><span class="fw-bold mono">{{ t.name }}</span> <span class="chip">{{ t.columns|length }} عمود</span>
+    {% if t.rows is not none %}<span class="chip">{{ t.rows|money }} سجل</span>{% endif %}</div>
+    <button class="btn btn-outline-secondary btn-sm" onclick="sample('{{ t.name }}', this)"><i class="bi bi-eye"></i> عينة حية</button>
+  </div>
+  <div class="mb-2">{% for c in t.columns %}<span class="chip mono" title="{{ c.type }}">{{ c.name }}</span>{% endfor %}</div>
+  {% if t.sample %}
+  <div class="scroll" style="max-height:200px"><table class="tbl small"><tr>{% for c in t.columns[:14] %}<th class="mono">{{ c.name }}</th>{% endfor %}</tr>
+  {% for r in t.sample %}<tr>{% for c in t.columns[:14] %}<td class="mono">{{ (r.get(c.name) if r is mapping else '')|string|truncate(40) }}</td>{% endfor %}</tr>{% endfor %}</table></div>
+  {% endif %}
+  <div class="live mt-2"></div>
+</div></div></div>
+{% endfor %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+async function sample(name, btn){
+ const box=btn.closest('.card-body').querySelector('.live');box.innerHTML='<div class="small text-muted">في انتظار الوكيل…</div>';
+ const r=await fetch('/projects/{{ p.id }}/agent/task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({kind:'test_query',payload:{table:name,limit:15}})});
+ const {id}=await r.json();waitTask(id,box);
+}
+async function waitTask(id,box){
+ for(let i=0;i<60;i++){await new Promise(r=>setTimeout(r,3000));
+  const j=await (await fetch('/projects/{{ p.id }}/agent/task/'+id)).json();
+  if(j.status=='done'||j.status=='error'){box.innerHTML=renderRes(j.result);return}}
+ box.innerHTML='<div class="small text-danger">الوكيل لم يرد. تأكد أنه يعمل.</div>';
+}
+function esc(s){return String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function renderRes(res){
+ if(!res||!res.ok)return '<div class="alert alert-danger small py-2">'+esc(res&&res.error)+'</div>';
+ const d=res.data;if(!d.rows.length)return '<div class="small text-muted">لا توجد سجلات</div>';
+ let h='<div class="scroll" style="max-height:300px"><table class="tbl small"><tr>'+d.columns.map(c=>'<th class="mono">'+esc(c)+'</th>').join('')+'</tr>';
+ d.rows.forEach(r=>{h+='<tr>'+r.map(v=>'<td class="mono">'+esc(v).slice(0,60)+'</td>').join('')+'</tr>'});
+ return h+'</table></div>';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+# For an always-on VM (e.g. Oracle Cloud Always Free). Data is kept in ./data
+services:
+  marsad:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/data
+    ports:
+      - "8000:8000"
+  caddy:   # free automatic HTTPS (Let's Encrypt). Set DOMAIN in .env
+    image: caddy:2
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    command: caddy reverse-proxy --from ${DOMAIN} --to marsad:8000
+    volumes:
+      - caddy_data:/data
+volumes:
+  caddy_data:
