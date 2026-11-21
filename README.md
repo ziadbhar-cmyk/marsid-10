@@ -94,3 +94,14 @@ marsad/
 cd server && pip install -r requirements.txt
 uvicorn app.main:app --reload        # http://127.0.0.1:8000   (admin / admin123)
 ```
+
+---
+
+## منظومة الخزينة والتصنيع (`/khazina`)
+
+صفحة مستقلة داخل المرصد: شجرة حسابات، خزينة ومصارف، مشتريات، إنتاج يومي، مخازن، صالة بيع، تقارير (ميزان مراجعة، قائمة دخل، مركز مالي، تدفقات نقدية)، ومستخدمون بصلاحيات.
+
+- تفتح على: `https://<رابط-المرصد>/khazina` — لها تسجيل دخول خاص بها ولا تحتاج دخول المرصد.
+- البيانات تُحفظ في Firebase (مجاني). أول فتح للصفحة يعرض خطوات الربط.
+- الملف: `server/app/khazina/index.html`.
+- اختياري — رابط على GitHub Pages: Settings ← Pages ← Source: **GitHub Actions**، ثم شغّل workflow ‏`khazina-pages`.

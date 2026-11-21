@@ -171,6 +171,19 @@ def cron_tick(key: str = ""):
     return {"result": {str(k): v for k, v in tick().items()}}
 
 
+# ------------------------------------------------------------------ khazina (treasury & manufacturing system)
+# Standalone page with its own login (Firebase); served without Marsad login.
+
+KHAZINA_FILE = C.BASE_DIR / "khazina" / "index.html"
+
+
+@app.get("/khazina", response_class=HTMLResponse, include_in_schema=False)
+@app.get("/khazina/", response_class=HTMLResponse, include_in_schema=False)
+def khazina():
+    return HTMLResponse(KHAZINA_FILE.read_text(encoding="utf-8"),
+                        headers={"Cache-Control": "no-cache"})
+
+
 # ------------------------------------------------------------------ home
 
 @app.get("/", response_class=HTMLResponse)
